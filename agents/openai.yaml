@@ -1,0 +1,4 @@
+interface:
+  display_name: "Enterprise Git Workflow"
+  short_description: "Plan, validate, commit, and merge Git changes"
+  default_prompt: "Use $bhd-git-skill to choose and execute the correct Git/GitHub workflow for this change."
