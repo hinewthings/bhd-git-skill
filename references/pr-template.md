@@ -78,5 +78,8 @@ Commands and results:
 ## Review notes
 
 - Required reviewers/code owners:
+- Merge strategy: Squash / Merge commit / Rebase / Fast-forward
+- Reason for selected strategy:
+- Signature/provenance impact checked: Yes / No / Not applicable
 - Known limitations or follow-up work:
 - Screenshots/video for UI changes:

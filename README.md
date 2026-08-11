@@ -146,6 +146,21 @@ PR cần có:
 - Screenshot/video nếu thay đổi UI.
 - Reviewer hoặc CODEOWNER cần review.
 
+## Chọn cách merge PR
+
+Skill sẽ đọc policy của repository trước. Nếu repository không quy định riêng, dùng nguyên tắc sau:
+
+| Strategy | Khi nên dùng |
+|---|---|
+| **Squash merge** | PR tập trung, commit có nhiều fixup/review noise, muốn `main` có một logical commit |
+| **Merge commit** | Cần giữ branch topology, lịch sử release/integration hoặc các commit có thể revert độc lập |
+| **Rebase + fast-forward** | Repository yêu cầu history tuyến tính và branch còn private, an toàn để rewrite |
+| **Rebase merge** | Repository quy định rõ và từng commit đều độc lập, đã test và review được |
+
+Không nên squash nếu các commit là các đơn vị deploy/release riêng, cần revert độc lập, hoặc repository yêu cầu giữ provenance/signature của từng commit.
+
+Squash, rebase, amend và merge commit đều tạo commit object mới. Commit SHA, parent, committer và trạng thái `Verified` phải được kiểm tra lại; chữ ký của commit cũ không tự truyền sang commit mới.
+
 ## Quy tắc an toàn
 
 Skill sẽ dừng và báo blocker khi:
@@ -190,4 +205,5 @@ Sau đó gọi `$bhd-git-skill` trước khi bắt đầu task.
 
 - [SKILL.md](SKILL.md): quy trình đầy đủ dành cho Codex.
 - [change-matrix.md](references/change-matrix.md): phân loại thay đổi và risk gate.
+- [merge-strategy.md](references/merge-strategy.md): cách chọn squash, merge commit, rebase và fast-forward.
 - [pr-template.md](references/pr-template.md): template PR chuẩn.

@@ -186,6 +186,18 @@ Open a PR using the repository's template. If no template exists, use `reference
 
 Prefer the repository's GitHub connector or `gh` for PR metadata and review state when available. Use Git for local history and file operations. Never expose tokens or paste secrets into issues, PRs, logs, or command output.
 
+## Merge strategy decision
+
+Before merging, read [merge-strategy.md](references/merge-strategy.md) and determine the strategy from repository policy and the change shape. Do not choose a strategy only to obtain a `Verified` badge.
+
+- Prefer **squash merge** for a focused PR whose commits are implementation steps, fixups, or review noise and should become one logical change on the base branch.
+- Prefer a **merge commit** when preserving branch topology, multiple independently meaningful commits, release/integration history, or separate revert points is important.
+- Prefer **rebase and fast-forward** when the repository requires a linear history and the branch is private or otherwise safe to rewrite.
+- Prefer **rebase merge** only when the repository explicitly uses it and each commit is independently meaningful, tested, and reviewable.
+- Do not squash commits that must be reverted independently, represent separate deploy/release units, document distinct authorship or provenance, or are required by the repository's signing/audit policy.
+
+Treat squash, rebase, amend, and merge commits as new commit objects. Re-check the resulting SHA, parents, author/committer, and signature status; signatures and `Verified` state do not transfer automatically from the original commits.
+
 ## Review and merge protocol
 
 Before merge, verify:
@@ -229,4 +241,5 @@ Keep the report factual and distinguish local validation from CI validation and 
 ## References
 
 - Read [change-matrix.md](references/change-matrix.md) when classifying change type, risk, required checks, reviewers, or rollout gates.
+- Read [merge-strategy.md](references/merge-strategy.md) when choosing squash, merge commit, rebase, fast-forward, or when checking commit signature/history impact.
 - Read [pr-template.md](references/pr-template.md) when creating or reviewing a pull request without a repository-specific template.
