@@ -1,6 +1,6 @@
 ---
 name: bhd-git-skill
-description: Enterprise Git and GitHub workflow for software changes across repositories. Use before, during, and after bug fixes, features, refactors, hotfixes, security patches, dependency upgrades, database migrations, API changes, UI changes, worker jobs, configuration or infrastructure changes, tests, docs, reverts, commits, pull requests, reviews, merges, releases, or branch cleanup.
+description: Enterprise Git and GitHub workflow for software changes across repositories, including local branch hygiene, commit validation, pull requests, CI/review gates, squash merges, post-merge synchronization, rollback, and safe branch cleanup. Use before, during, and after bug fixes, features, refactors, hotfixes, security patches, dependency upgrades, database migrations, API changes, UI changes, worker jobs, configuration or infrastructure changes, tests, docs, reverts, commits, pull requests, reviews, merges, releases, or branch cleanup.
 ---
 
 # Enterprise Git Workflow
@@ -41,6 +41,37 @@ Read applicable instructions before changing anything:
 
 Determine the protected/default branch from repository configuration and remote HEAD. Do not assume it is named `main`. Check for uncommitted or untracked work. Preserve unrelated changes; never include them merely because they are present.
 
+## Canonical local-to-GitHub lifecycle
+
+Use one branch per logical change and keep the local checkout aligned with the remote at every boundary:
+
+```text
+origin/<base> → fresh feature branch → local implementation → validated commit
+→ pushed branch → PR → CI/review → merge → fetch → local <base> fast-forward
+```
+
+Before starting a new task:
+
+```text
+git fetch origin --prune
+git status --short
+git switch <base>
+git pull --ff-only origin <base>
+git switch -c codex/<type>/<short-slug> origin/<base>
+git status --short --branch
+```
+
+Use the repository's actual default branch discovered from `origin/HEAD`; `main` is only an example. If the working tree is dirty, stop and preserve the user's changes. Do not reset, clean, stash, or switch away from a dirty checkout without explicit direction.
+
+Never reuse a branch after its PR is merged. Never open a PR from a branch that contains commits already merged through another PR without first comparing it to `origin/<base>`:
+
+```text
+git log --oneline origin/<base>..HEAD
+git diff --stat origin/<base>...HEAD
+```
+
+If the branch is contaminated or based on an old line of history, create a clean branch from `origin/<base>` and cherry-pick only the intended commits. This prevents duplicate PRs and keeps the PR diff limited to the requested change.
+
 ## Workflow contract
 
 Before implementation, output a concise contract containing:
@@ -65,6 +96,8 @@ codex/chore/<short-slug>
 ```
 
 Create the branch from the latest protected/default branch. If the working tree contains user changes, do not reset or stash them without permission; either work around them or ask for direction.
+
+For a new branch, prefer `git switch -c <branch> origin/<base>` over branching from a possibly stale local base. Verify the branch is clean against its base before editing.
 
 ## Change classification
 
@@ -148,6 +181,14 @@ git diff --cached
 git commit -m "fix(auth): handle expired access token"
 ```
 
+After committing, verify the commit contains only the intended files:
+
+```text
+git status --short
+git show --stat --oneline HEAD
+git diff HEAD^ HEAD --check
+```
+
 Use Conventional Commits by default:
 
 ```text
@@ -182,9 +223,29 @@ Push only the intended branch:
 git push -u origin <branch-name>
 ```
 
+Before opening the PR, confirm the branch and base are correct:
+
+```text
+git fetch origin --prune
+git log --oneline origin/<base>..HEAD
+git diff --name-status origin/<base>...HEAD
+git status --short --branch
+```
+
+If the feature branch must be rebased onto a newer base, do it only on a private branch and only with a clean working tree. Use `git push --force-with-lease`, never plain `--force`; do not rewrite a shared or actively reviewed branch without coordination.
+
 Open a PR using the repository's template. If no template exists, use `references/pr-template.md`. Include problem, solution, scope, risk, tests, migration/config changes, screenshots for UI, rollout, monitoring, rollback, and reviewer requests. Mark the PR draft while incomplete or while high-risk validation is missing.
 
 Prefer the repository's GitHub connector or `gh` for PR metadata and review state when available. Use Git for local history and file operations. Never expose tokens or paste secrets into issues, PRs, logs, or command output.
+
+After opening a PR, inspect both metadata and checks:
+
+```text
+gh pr view <number> --json state,baseRefName,headRefName,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup
+gh pr checks <number> --watch
+```
+
+If the repository has no automated checks, state that explicitly in the PR and final report; local validation is not equivalent to CI. Require the appropriate manual review and smoke test before merge.
 
 ## Merge strategy decision
 
@@ -212,6 +273,34 @@ Before merge, verify:
 Merge only after the user explicitly requests it or an approved automation policy clearly authorizes it. Never merge failing checks, unresolved conflicts, unresolved blocking comments, or an unreviewed high-risk change. Use the repository's mandated strategy; otherwise prefer squash merge for a focused PR. Never force-push or delete a branch before confirming the merge completed.
 
 After merge, verify the target branch, CI/deployment status, migration result, and smoke checks. Delete the remote branch only when safe and permitted. Keep a rollback/revert path until the change is confirmed healthy.
+
+## Post-merge synchronization
+
+After GitHub reports the PR as merged, verify the merge commit and update the local base branch:
+
+```text
+gh pr view <number> --json state,mergedAt,mergeCommit
+git fetch origin --prune
+git switch <base>
+git pull --ff-only origin <base>
+git status --short --branch
+git log -1 --oneline --decorate
+```
+
+The local base branch must point to `origin/<base>` and have a clean working tree. Do not treat a merged remote PR as complete while local `<base>` is behind. Delete the local or remote feature branch only after confirming the merge and only with explicit authorization when deletion is material.
+
+## Repository protection baseline
+
+When repository administration is in scope, recommend or verify:
+
+- protected default branch; no direct pushes;
+- PR required for every non-trivial change;
+- required CI checks and at least one review for normal changes;
+- CODEOWNERS review for sensitive modules;
+- force-push and branch deletion restrictions;
+- deployment and migration checks before production promotion.
+
+Do not change repository settings unless the user explicitly asks for that administrative action.
 
 ## Safety rules
 

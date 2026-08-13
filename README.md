@@ -20,6 +20,39 @@ Hiểu scope
 
 Quy tắc riêng của repository, `AGENTS.md`, `CONTRIBUTING.md`, CI/CD, branch protection và CODEOWNERS luôn được ưu tiên hơn mặc định của skill.
 
+## Quy trình chuẩn local → GitHub
+
+Giữ mỗi thay đổi trong một branch riêng và đồng bộ local với remote ở mọi ranh giới:
+
+```text
+origin/<base> → branch mới → implementation → commit đã validate
+→ push → PR → CI/review → merge → fetch → fast-forward local <base>
+```
+
+Trước khi bắt đầu task mới:
+
+```text
+git fetch origin --prune
+git status --short
+git switch <base>
+git pull --ff-only origin <base>
+git switch -c codex/<type>/<short-slug> origin/<base>
+git status --short --branch
+```
+
+`<base>` phải là default/protected branch thực tế từ `origin/HEAD`; `main` chỉ là ví dụ. Nếu worktree đang dirty, phải dừng và bảo toàn thay đổi của người dùng. Không reset, clean, stash hoặc switch away khi chưa có chỉ đạo rõ ràng.
+
+Không tái sử dụng branch sau khi PR đã merge. Trước khi mở PR, luôn kiểm tra branch chỉ chứa thay đổi của task:
+
+```text
+git fetch origin --prune
+git log --oneline origin/<base>..HEAD
+git diff --name-status origin/<base>...HEAD
+git status --short --branch
+```
+
+Nếu branch bị nhiễm commit cũ hoặc bắt đầu từ base cũ, tạo branch sạch từ `origin/<base>` và chỉ cherry-pick commit đúng scope. Không mở PR trùng lại các thay đổi đã merge.
+
 ## Cách gọi
 
 Trong Codex có thể gọi bằng:
@@ -146,6 +179,15 @@ PR cần có:
 - Screenshot/video nếu thay đổi UI.
 - Reviewer hoặc CODEOWNER cần review.
 
+Trước khi mở PR, ngoài các check local, phải xác nhận metadata và CI trên GitHub:
+
+```text
+gh pr view <number> --json state,baseRefName,headRefName,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup
+gh pr checks <number> --watch
+```
+
+Không báo CI đã pass nếu chưa thực sự có check. Nếu repository không có automated checks, ghi rõ trong PR và yêu cầu manual review/smoke test phù hợp.
+
 ## Chọn cách merge PR
 
 Skill sẽ đọc policy của repository trước. Nếu repository không quy định riêng, dùng nguyên tắc sau:
@@ -161,6 +203,19 @@ Không nên squash nếu các commit là các đơn vị deploy/release riêng, 
 
 Squash, rebase, amend và merge commit đều tạo commit object mới. Commit SHA, parent, committer và trạng thái `Verified` phải được kiểm tra lại; chữ ký của commit cũ không tự truyền sang commit mới.
 
+Sau khi PR đã merge, luôn đưa local base branch về cùng trạng thái với GitHub:
+
+```text
+gh pr view <number> --json state,mergedAt,mergeCommit
+git fetch origin --prune
+git switch <base>
+git pull --ff-only origin <base>
+git status --short --branch
+git log -1 --oneline --decorate
+```
+
+Chỉ xóa branch local/remote sau khi đã xác nhận merge thành công và có quyền cho phép.
+
 ## Quy tắc an toàn
 
 Skill sẽ dừng và báo blocker khi:
@@ -172,6 +227,18 @@ Skill sẽ dừng và báo blocker khi:
 - Không xác định được credential hoặc remote GitHub.
 
 Không dùng các lệnh phá hủy như `git reset --hard`, `git clean`, `git checkout --`, force-push thông thường hoặc `git add .` mù quáng.
+
+## Baseline bảo vệ repository
+
+Khi phạm vi có quản trị repository, khuyến nghị kiểm tra:
+
+- default branch được protect, không push trực tiếp;
+- PR, CI checks và approval là gate cho thay đổi thông thường;
+- CODEOWNERS review cho module nhạy cảm;
+- hạn chế force-push và xóa branch;
+- check deploy/migration trước khi promote production.
+
+Không thay đổi repository settings nếu người dùng chưa yêu cầu rõ.
 
 ## Cấu trúc repository
 
